@@ -1,0 +1,78 @@
+Kellen Valerie
+00000093194
+
+1. When a user takes a picture, that picture is stored in a path based on the givenURI. In which part of the code handles this? (Copy that part of the code as the answer)
+
+Bagian kode yang menyimpan file ke MediaStore adalah di dalam ProviderFileManager, pada fungsi : 
+private fun insertToStore(fileInfo: FileInfo, contentUri: Uri, contentValues: ContentValues) {
+    executor.execute {
+        val insertedUri = contentResolver.insert(contentUri, contentValues)
+        insertedUri?.let {
+            val inputStream = contentResolver.openInputStream(fileInfo.uri)
+            val outputStream = contentResolver.openOutputStream(insertedUri)
+            IOUtils.copy(inputStream, outputStream)
+        }
+    }
+}
+
+Dan fungsi ini dipanggil dari : 
+providerFileManager.insertImageToStore(photoInfo)
+
+di MainActivity.
+
+2. In your FileInfo.kt, there are 5 attributes. On the first attribute, what does the URI refer to? And on the fourth attribute, what does relativePath refer to?
+
+Isi dari FIleInfo.kt :
+ 
+data class FileInfo(
+    val uri: Uri,
+    val file: File,
+    val name: String,
+    val relativePath: String,
+    val mimeType: String
+)
+
+a. Atribut pertama – uri
+uri adalah URI sementara (temporary URI) yang diberikan oleh FileProvider. Fungsinya: Mengizinkan kamera mengakses file sementara secara aman, menjadi lokasi penyimpanan awal hasil foto atau video sebelum dipindahkan ke MediaStore. Contoh: content://com.example.lab_week_11_b.camera/my_images/12345.jpg
+
+b. Atribut keempat – relativePath
+relativePath adalah folder tujuan di MediaStore tempat file akan disimpan secara permanen. Contoh: Untuk foto → "Pictures", Untuk video → "Movies" Ini yang menentukan folder di galeri : /storage/emulated/0/Pictures atau /storage/emulated/0/Movies. Dengan kata lain, relativePath menentukan folder akhir foto/video berada di MediaStore.
+
+3. [Bonus] Explain the chronological order from when a user takes a picture until the file is stored in the MediaStore
+
+1. User menekan tombol “Photo”
+photo_button ditekan → memanggil fungsi openImageCapture().
+
+2. Sistem membuat file sementara (temporary file)
+generatePhotoUri() membuat:
+nama file (misal: img_12345.jpg)
+file sementara di folder aplikasi
+URI sementara via FileProvider
+relativePath = "Pictures"
+
+3. Kamera dibuka menggunakan temporary URI
+takePictureLauncher.launch(photoInfo!!.uri) membuka kamera dengan lokasi penyimpanan awal yang aman (FileProvider).
+
+4. Kamera menyimpan foto ke URI sementara
+File foto ditulis sementara di folder aplikasi:
+/Android/data/<package>/files/Pictures/
+
+5. Callback ActivityResult dijalankan setelah foto selesai
+Fungsi:
+providerFileManager.insertImageToStore(photoInfo) dipanggil otomatis.
+
+6. MediaStore membuat entry baru untuk foto
+Menggunakan:
+contentResolver.insert(contentUri, contentValues)
+MediaStore menentukan lokasi akhir (folder Pictures).
+
+7. File disalin dari tempat sementara → ke MediaStore
+Diproses menggunakan:
+IOUtils.copy(inputStream, outputStream)
+inputStream → membaca file dari URI FileProvider
+outputStream → menulis ke MediaStore (Pictures/)
+
+8. Foto berhasil tersimpan permanen di Storage publik
+Lokasi akhir:
+/storage/emulated/0/Pictures/
+Foto kini bisa dilihat oleh: Gallery
